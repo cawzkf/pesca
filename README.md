@@ -33,3 +33,9 @@
 │   ├── integration/      # Testes de integração
 │   └── fixtures/         # Dados para testes
 └── docs/                 # Documentação adicional -->
+
+
+# PescaSync
+
+
+Setup inicial completo - estrutura organizada seguindo Clean Architecture
