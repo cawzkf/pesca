@@ -1,0 +1,1 @@
+# implrementações tecnicas
