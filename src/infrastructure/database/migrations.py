@@ -1,5 +1,7 @@
 # estrutura do banco 
-
+import sqlite3
+from datetime import datetime
+from config.database import DATABASE_PATH
 
 def migration_001():
     return """
@@ -65,3 +67,15 @@ def migration_004():
         FOREIGN KEY (tank_id) REFERENCES tanks(id)
     );
     """
+# tabela para controlar migrations executadas
+def create_migrations_table():
+    with sqlite3.connect(DATABASE_PATH) as connect:
+        cursor = connect.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS migrations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                version TEXT UNIQUE NOT NULL,
+                executed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        connect.commit()
