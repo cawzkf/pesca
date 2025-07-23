@@ -182,3 +182,4 @@ if __name__ == "__main__":
     print(f"Migrations executadas: {executed}")
     
     print("\nSistema de migrations funcionando!")
+    
