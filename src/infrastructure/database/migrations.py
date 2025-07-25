@@ -12,7 +12,7 @@ def migration_001():
         fish_count INTEGER DEFAULT 0,
         ip_address TEXT,
         active BOOLEAN DEFAULT 1,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at DATETIME DEFAULT (datetime('now', 'localtime'))
     );
     """
 
@@ -26,7 +26,7 @@ def migration_002():
         ph REAL NOT NULL,
         oxygen REAL NOT NULL,
         turbidity REAL NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_at DATETIME DEFAULT (datetime('now', 'localtime')),
         FOREIGN KEY (tank_id) REFERENCES tanks(id)
     );
     """
@@ -43,7 +43,7 @@ def migration_003():
         threshold REAL,
         resolved BOOLEAN DEFAULT 0,
         resolved_at DATETIME,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_at DATETIME DEFAULT (datetime('now', 'localtime')),
         FOREIGN KEY (tank_id) REFERENCES tanks(id)
     );
     """
@@ -63,7 +63,7 @@ def migration_004():
         executed_at DATETIME,
         auto_marked BOOLEAN DEFAULT 0,
         notes TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_at DATETIME DEFAULT (datetime('now', 'localtime')),
         FOREIGN KEY (tank_id) REFERENCES tanks(id)
     );
     """
@@ -98,7 +98,7 @@ def create_migrations_table():
             CREATE TABLE IF NOT EXISTS migrations (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 version TEXT UNIQUE NOT NULL,
-                executed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                executed_at DATETIME DEFAULT (datetime('now', 'localtime'))
             );
         """)
         connec.commit()
