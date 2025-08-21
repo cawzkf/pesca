@@ -36,16 +36,13 @@ def clamp(v: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, v))
 
 def smooth_value(prev: float, base: float, variation: float, cycle_rad: float) -> float:
-    """
-    Próximo valor: ruído leve + ciclo diário senoidal + retorno suave ao 'base'
-    """
-    # ciclo diário (seno entre -1 e +1)
+    # ciclo diário (fase deslocada: 0h ↔ 12h em extremos)
     drift = math.sin(cycle_rad) * (variation * 0.5)
-    # ruído leve local
+    drift = math.cos(cycle_rad) * (variation * 0.5)
     noise = random.uniform(-0.3, 0.3)
-    # aproximação suave ao base
     pull = (base - prev) * 0.05
     return prev + noise + drift + pull
+
 
 def inject_problem(values: dict[str, float]) -> None:
     """
