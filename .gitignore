@@ -34,3 +34,7 @@ Thumbs.db.streamlit/
 __pycache__/
 *.pyc
 *.db
+data/
+__pycache__/
+*.pyc
+.streamlit/

@@ -22,6 +22,7 @@ TANK_PROFILES = {
 
 PROBLEM_PROBABILITY = 0.10   # 10% de leituras com problema
 INTERVAL = 30                # segundos entre leituras
+PROBLEM_COOLDOWN = 10 
 STATE: dict[int, dict[str, float]] = {}  # estado por tanque (continuidade)
 
 # ===== Helpers =====
@@ -73,9 +74,6 @@ def ensure_tank(conn: sqlite3.Connection, tank_id: int) -> None:
         conn.commit()
 
 def generate_reading(tank_id: int, minute_of_day: int) -> dict[str, float]:
-    """
-    Gera leitura com continuidade temporal, ciclo diário e possível anomalia.
-    """
     profile = TANK_PROFILES[tank_id]
     prev = STATE.get(tank_id)
 
@@ -85,9 +83,13 @@ def generate_reading(tank_id: int, minute_of_day: int) -> dict[str, float]:
             "ph":          profile["ph_base"],
             "oxygen":      profile["oxygen_base"],
             "turbidity":   profile["turbidity_base"],
+            "_tick": -1,                   # <— meta
+            "_last_problem_tick": -10,     # <— meta
         }
 
-    # ciclo diário em radianos (0..2π ao longo de 1440 min)
+    tick = int(prev.get("_tick", -1)) + 1
+    last_prob = int(prev.get("_last_problem_tick", -10))
+
     cycle = (minute_of_day / 1440.0) * 2.0 * math.pi
 
     new_values = {
@@ -97,21 +99,23 @@ def generate_reading(tank_id: int, minute_of_day: int) -> dict[str, float]:
         "turbidity":   smooth_value(prev["turbidity"],   profile["turbidity_base"],   profile["turb_var"], cycle),
     }
 
-    # Correlação simples: pH acima do base+0.5 tende a reduzir O₂
     if new_values["ph"] > profile["ph_base"] + 0.5:
         new_values["oxygen"] -= 5.0
 
-    # Injeção ocasional de problemas
-    if random.random() < PROBLEM_PROBABILITY:
+    # ---------- novo: cooldown de problemas ----------
+    can_problem = (tick >= 1) and ((tick - last_prob) >= PROBLEM_COOLDOWN)
+    if can_problem and random.random() < PROBLEM_PROBABILITY:
         inject_problem(new_values)
+        last_prob = tick
+    # -------------------------------------------------
 
-    # Clamps nos limites "duros" (compatível com SensorReading)
     new_values["temperature"] = clamp(new_values["temperature"], 0.0, 50.0)
     new_values["ph"]          = clamp(new_values["ph"],          0.0, 14.0)
     new_values["oxygen"]      = clamp(new_values["oxygen"],      0.0, 100.0)
     new_values["turbidity"]   = clamp(new_values["turbidity"],   0.0, 200.0)
 
-    STATE[tank_id] = new_values
+    # salva valores + meta
+    STATE[tank_id] = {**new_values, "_tick": tick, "_last_problem_tick": last_prob}
     return new_values
 
 def insert_reading(conn: sqlite3.Connection, tank_id: int, values: dict[str, float]) -> None:
