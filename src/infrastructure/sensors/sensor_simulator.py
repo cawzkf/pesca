@@ -14,17 +14,19 @@ from src.infrastructure.database.migrations import run_migrations
 TANK_PROFILES = {
     1: {
         "temperature_base": 26.0, "temp_var": 2.0,
-        "ph_base": 7.2,         "ph_var": 0.5,
-        "oxygen_base": 85.0,    "oxy_var": 10.0,
-        "turbidity_base": 25.0, "turb_var": 15.0,
+        "ph_base": 7.2,          "ph_var": 0.5,
+        "oxygen_base": 85.0,     "oxy_var": 10.0,
+        "turbidity_base": 25.0,  "turb_var": 15.0,
     }
 }
 
 PROBLEM_PROBABILITY = 0.10   # 10% de leituras com problema
 INTERVAL = 30                # segundos entre leituras
-PROBLEM_COOLDOWN = 10 
-STARTUP_GRACE_TICKS = 3 
-STATE: dict[int, dict[str, float]] = {}  # estado por tanque (continuidade)
+PROBLEM_COOLDOWN = 10        # ticks mínimos entre anomalias
+STARTUP_GRACE_TICKS = 3      # não injeta anomalia nos primeiros ticks
+
+# estado por tanque (continuidade temporal)
+STATE: dict[int, dict[str, float]] = {}
 
 # ===== Helpers =====
 def _utc_iso() -> str:
@@ -84,8 +86,8 @@ def generate_reading(tank_id: int, minute_of_day: int) -> dict[str, float]:
             "ph":          profile["ph_base"],
             "oxygen":      profile["oxygen_base"],
             "turbidity":   profile["turbidity_base"],
-            "_tick": -1,                   # <— meta
-            "_last_problem_tick": -10,     # <— meta
+            "_tick": -1,                   # meta
+            "_last_problem_tick": -10,     # meta
         }
 
     tick = int(prev.get("_tick", -1)) + 1
@@ -100,6 +102,7 @@ def generate_reading(tank_id: int, minute_of_day: int) -> dict[str, float]:
         "turbidity":   smooth_value(prev["turbidity"],   profile["turbidity_base"],   profile["turb_var"], cycle),
     }
 
+    # correlação: pH alto reduz ligeiramente O2
     if new_values["ph"] > profile["ph_base"] + 0.5:
         new_values["oxygen"] -= 5.0
 
@@ -118,7 +121,6 @@ def generate_reading(tank_id: int, minute_of_day: int) -> dict[str, float]:
             inject_problem(new_values)
             last_prob = tick
     # -----------------------------------------------------------------------
-
 
     new_values["temperature"] = clamp(new_values["temperature"], 0.0, 50.0)
     new_values["ph"]          = clamp(new_values["ph"],          0.0, 14.0)
@@ -144,7 +146,6 @@ def main() -> None:
 
     with sqlite3.connect(DATABASE_PATH) as conn:
         conn.execute("PRAGMA foreign_keys = ON;")
-
         # garante todos os tanques configurados
         for tid in TANK_PROFILES.keys():
             ensure_tank(conn, tid)
