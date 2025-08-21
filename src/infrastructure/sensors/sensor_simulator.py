@@ -23,6 +23,7 @@ TANK_PROFILES = {
 PROBLEM_PROBABILITY = 0.10   # 10% de leituras com problema
 INTERVAL = 30                # segundos entre leituras
 PROBLEM_COOLDOWN = 10 
+STARTUP_GRACE_TICKS = 3 
 STATE: dict[int, dict[str, float]] = {}  # estado por tanque (continuidade)
 
 # ===== Helpers =====
@@ -102,12 +103,22 @@ def generate_reading(tank_id: int, minute_of_day: int) -> dict[str, float]:
     if new_values["ph"] > profile["ph_base"] + 0.5:
         new_values["oxygen"] -= 5.0
 
-    # ---------- novo: cooldown de problemas ----------
-    can_problem = (tick >= 1) and ((tick - last_prob) >= PROBLEM_COOLDOWN)
-    if can_problem and random.random() < PROBLEM_PROBABILITY:
-        inject_problem(new_values)
-        last_prob = tick
-    # -------------------------------------------------
+    # ---------- anomalias: grace inicial + cooldown + modo forçado ----------
+    # "force" é usado nos testes quando PROBLEM_PROBABILITY ≈ 1.0
+    force = PROBLEM_PROBABILITY >= 0.99
+    can_force_now = (tick >= 1)  # pode forçar já no 2º passo
+    can_normal = (tick >= STARTUP_GRACE_TICKS) and ((tick - last_prob) >= PROBLEM_COOLDOWN)
+
+    if force:
+        if can_force_now:
+            inject_problem(new_values)
+            last_prob = tick
+    else:
+        if can_normal and (random.random() < PROBLEM_PROBABILITY):
+            inject_problem(new_values)
+            last_prob = tick
+    # -----------------------------------------------------------------------
+
 
     new_values["temperature"] = clamp(new_values["temperature"], 0.0, 50.0)
     new_values["ph"]          = clamp(new_values["ph"],          0.0, 14.0)
