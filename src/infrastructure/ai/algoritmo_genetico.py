@@ -1,1 +1,0 @@
-# os uses cases chamam esse algoritmo assim como o random

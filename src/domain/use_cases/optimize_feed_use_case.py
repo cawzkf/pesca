@@ -18,6 +18,9 @@ WeightPredictor = Callable[[dict], float]
 
 @dataclass(frozen=True)
 class OptimizeFeedResult:
+    """
+    DTO imutável com o resultado da recomendação de ração.
+    """
     grams_per_fish: float
     total_grams: float
     notes: str
@@ -37,12 +40,38 @@ class OptimizeFeedUseCase:
         feed_repo: IFeedRecommendationRepository,
         weight_predictor: Optional[WeightPredictor] = None,
     ) -> None:
+        """
+        Injeta repositórios do domínio e, opcionalmente, um preditor de peso.
+
+        Args:
+            tank_repo: Acesso à entidade Tank.
+            sensor_repo: Acesso à última leitura de sensores do tanque.
+            feed_repo: Persistência da recomendação de ração.
+            weight_predictor: Função opcional que recebe features e retorna peso (kg).
+        """
         self.tank_repo = tank_repo
         self.sensor_repo = sensor_repo
         self.feed_repo = feed_repo
         self.weight_predictor = weight_predictor  # pode ser injetado nos testes
 
     def execute(self, tank_id: int, dias_cultivo: float = 120.0) -> OptimizeFeedResult:
+        """
+        Gera e persiste uma recomendação de ração para o tanque informado.
+
+        Fluxo resumido:
+            - Busca Tank e última leitura; usa leitura neutra se ausente.
+            - Estima peso (kg) por peixe via preditor ou baseline (0.10 kg).
+            - Calcula 2% do peso em gramas por peixe, com piso de 0.1 g.
+            - Reduz 10% ou 30% conforme severidade (WARNING/CRITICAL).
+            - Calcula total (g) para o tanque e persiste no repositório.
+
+        Args:
+            tank_id: Identificador do tanque.
+            dias_cultivo: Idade do cultivo usada como feature no preditor.
+
+        Returns:
+            OptimizeFeedResult: valores arredondados e nota de condição.
+        """
         tank = self.tank_repo.get(tank_id)
         if not tank:
             raise ValueError(f"Tank {tank_id} não encontrado")
