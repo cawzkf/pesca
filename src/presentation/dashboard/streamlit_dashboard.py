@@ -1,1 +1,0 @@
-# Roda no browser do display touchscreen da Raspberry 

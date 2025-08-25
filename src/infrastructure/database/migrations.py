@@ -4,6 +4,7 @@ from datetime import datetime
 from config.database import DATABASE_PATH
 
 def migration_001():
+    """Cria a tabela 'tanks' com dados básicos do tanque."""
     return """
     CREATE TABLE tanks (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -17,6 +18,7 @@ def migration_001():
     """
 
 def migration_002():
+    """Cria a tabela 'sensor_readings' para leituras por tanque."""
     return """
     CREATE TABLE sensor_readings (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,6 +34,7 @@ def migration_002():
     """
 
 def migration_003():
+    """Cria a tabela 'alerts' com severidade, valor, limiar e marcações de resolução."""
     return """
     CREATE TABLE alerts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,6 +53,7 @@ def migration_003():
 
 
 def migration_004():
+    """Cria a tabela 'feed_recommendations' para recomendações de ração."""
     return """
     CREATE TABLE feed_recommendations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,29 +73,53 @@ def migration_004():
     """
 
 def migration_005():
+    """Cria índice composto para acelerar consultas por (tank_id, timestamp)."""
     return """
     CREATE INDEX idx_sensor_readings_tank_timestamp ON sensor_readings(tank_id, timestamp);
     """
 
 def migration_006():
+    """Cria índice para alertas filtrando por (tank_id, resolved)."""
     return """
     CREATE INDEX idx_alerts_tank_resolved ON alerts(tank_id, resolved);
     """
 
 def migration_007():
+    """Cria índice para recomendações por (tank_id, recommended_time)."""
     return """
     CREATE INDEX idx_feed_recommendations_tank_time ON feed_recommendations(tank_id, recommended_time);
     """
 
 def migration_008():
+    """Insere Tanque 1 como dado inicial (seed)."""
     return """
     INSERT INTO tanks (name, capacity, fish_count, ip_address) VALUES 
-    ('Tanque Principal', 1000.0, 500, '192.168.1.10');
+    ('Tanque 1', 1000.0, 500, '192.168.1.10');
     """
 
+def migration_009():
+    """Insere Tanque 2 como dado inicial (seed)."""
+    return """
+    INSERT INTO tanks (name, capacity, fish_count, ip_address) VALUES 
+    ('Tanque 2', 1000.0, 500, '192.168.1.11');
+    """
 
+def migration_010():
+    """Insere Tanque 3 como dado inicial (seed)."""
+    return """
+    INSERT INTO tanks (name, capacity, fish_count, ip_address) VALUES 
+    ('Tanque 3', 1000.0, 500, '192.168.1.12');
+    """
+
+def migration_011():
+    """Insere Tanque 4 como dado inicial (seed)."""
+    return """
+    INSERT INTO tanks (name, capacity, fish_count, ip_address) VALUES 
+    ('Tanque 4', 1000.0, 500, '192.168.1.13');
+    """
 # tabela para controlar migrations executadas
 def create_migrations_table():
+    """Garante a existência da tabela de controle 'migrations'."""
     with sqlite3.connect(DATABASE_PATH) as connec:
         cursor = connec.cursor()
         cursor.execute("""
@@ -103,14 +131,39 @@ def create_migrations_table():
         """)
         connec.commit()
 
+
+def _ensure_column(conn, table, column, type_sql, default_sql=None):
+    """
+    Adiciona uma coluna se ela não existir (ALTER TABLE ... ADD COLUMN).
+
+    Args:
+        conn: conexão sqlite3 aberta.
+        table: nome da tabela.
+        column: nome da coluna a garantir.
+        type_sql: tipo SQL (ex.: "REAL", "TEXT").
+        default_sql: literal de valor padrão (opcional).
+    """
+    cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
+    if column not in cols:
+        ddl = f"ALTER TABLE {table} ADD COLUMN {column} {type_sql}"
+        if default_sql is not None:
+            ddl += f" DEFAULT {default_sql}"
+        conn.execute(ddl)
+
+
 def get_executed_migrations():
+    """
+    Retorna a lista das migrations já executadas (strings de versão).
+
+    Observação:
+        Se a tabela 'migrations' ainda não existir, retorna lista vazia.
+    """
     # retorna a lista das migrations que ja foram executadas(vão estar na tupla do banco)
     try:
         with sqlite3.connect(DATABASE_PATH) as connec:
             cursor = connec.cursor()
             # comando
             cursor.execute("SELECT version FROM migrations ORDER BY version")
-            
             # retorna todas as linhas do resultado
             results = cursor.fetchall()
             return [row[0] for row in results] 
@@ -120,6 +173,10 @@ def get_executed_migrations():
     
 
 def run_migrations():
+    """
+    Executa as migrations pendentes, na ordem declarada em 'available_migrations',
+    e garante a coluna 'tanks.peso_medio_g' ao final.
+    """
     # executa  as  pendentes
     # garantir que tabela  existe
     create_migrations_table()
@@ -136,7 +193,10 @@ def run_migrations():
         '005': migration_005,
         '006': migration_006,
         '007':migration_007,
-        '008': migration_008
+        '008': migration_008,
+        '009': migration_009,
+        '010': migration_010,
+        '011': migration_011,
     }
     
     # 4. Executar só as pendentes
@@ -146,9 +206,20 @@ def run_migrations():
             execute_migration(migration_func, version)
             print(f"Migration {version} concluída!")
     
+    # Passo de compatibilidade: garante coluna adicional na tabela 'tanks'
+    with sqlite3.connect(DATABASE_PATH) as con:
+        _ensure_column(con, "tanks", "peso_medio_g", "REAL", "0.0")
+        con.commit()
     print("Todas as migrations executadas")
 
 def execute_migration(migration_func, version):
+    """
+    Executa uma migration específica e registra a versão na tabela 'migrations'.
+
+    Args:
+        migration_func: função que retorna o SQL (DDL/DML) da migration.
+        version: string de versão (ex.: '001', '002').
+    """
     # executa uma migration específica e marca como executada
     try:
         with sqlite3.connect(DATABASE_PATH) as connec:
@@ -182,4 +253,3 @@ if __name__ == "__main__":
     print(f"Migrations executadas: {executed}")
     
     print("\nSistema de migrations funcionando!")
-    

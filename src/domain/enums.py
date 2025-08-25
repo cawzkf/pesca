@@ -1,16 +1,19 @@
 from enum import Enum, auto
 
 class TankStatus(Enum):
-    ATIVO = auto()
-    MANUTENCAO = auto()
-    INATIVO = auto()
+    """Estado operacional do tanque."""
+    ATIVO = auto()        # Operando normalmente
+    MANUTENCAO = auto()   # Em manutenção (temporariamente indisponível)
+    INATIVO = auto()      # Fora de operação
 
 class Severity(Enum):
-    NORMAL = auto()
-    WARNING = auto()
-    CRITICAL = auto()
+    """Nível de severidade para condições/alertas."""
+    NORMAL = auto()    # Dentro da faixa esperada
+    WARNING = auto()   # Atenção: fora do ideal
+    CRITICAL = auto()  # Crítico: ação imediata necessária
 
 class AlertType(Enum):
-    WATER_QUALITY = auto()
-    OVERCROWD = auto()
-    DEVICE = auto()
+    """Categoria/origem do alerta."""
+    WATER_QUALITY = auto()  # Relacionado à qualidade da água (pH, temp, O2, turbidez)
+    OVERCROWD = auto()      # Densidade/superlotação
+    DEVICE = auto()         # Dispositivo/sensor/equipamento
